@@ -1,0 +1,6 @@
+<launch>
+  <node name="turtlesim" pkg="turtlesim" type="turtlesim_node" output="screen"/>
+
+  <node name="turtle_chase" pkg="turtle_chase" type="turtle_chase" output="screen"
+        launch-prefix="bash -c 'sleep 2; exec $0 $@'"/>
+</launch>

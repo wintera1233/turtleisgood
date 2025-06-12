@@ -1,0 +1,26 @@
+services:
+  ros1-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USERNAME: user
+        USER_UID: 1000
+        USER_GID: 1000
+    image: local:ros
+    container_name: ros1-dev
+    stdin_open: true
+    tty: true
+    privileged: true
+    restart: "no"
+    network_mode: host
+    working_dir: /home/user/ros1-ws
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - ROS_WS=/home/user/ros1-ws
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ../ros1-ws:/home/user/ros1-ws:rw

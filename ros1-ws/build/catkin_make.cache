@@ -1,0 +1,2 @@
+devel-ws/turtle_chase
+-DCATKIN_DEVEL_PREFIX=/home/user/ros1-ws/devel -DCMAKE_INSTALL_PREFIX=/home/user/ros1-ws/install -G Unix Makefiles
