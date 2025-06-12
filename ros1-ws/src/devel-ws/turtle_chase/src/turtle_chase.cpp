@@ -1,11 +1,9 @@
-
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <turtlesim/Pose.h>
 #include <math.h>
 #include <vector>
 #include <turtlesim/Spawn.h>
-
 
 struct Pose {
     double x;
@@ -26,16 +24,23 @@ void turtleBCallback(const turtlesim::Pose::ConstPtr& msg) {
     turtleB_pose_ready = true;
 }
 
-// 將 vx, vy 經轉移方程式產生 vx', vy'
-void applyTransform(double vx, double vy, double& vx_out, double& vy_out) {
-    vx_out = 0.8 * vx + 0.5 * vy;
-    vy_out = 0.2 * vx + 0.5 * vy;
+// //  vx, vy to vx', vy'
+// void applyTransform(double vx, double vy, double& vx_out, double& vy_out) {
+//     vx_out = 0.8 * vx + 0.5 * vy;
+//     vy_out = 0.2 * vx + 0.5 * vy;
+// }
+
+// raw to goal position transform
+Pose transformPosition(const Pose& distorted) {
+    Pose result;
+    result.x = 1.6667 * distorted.x - 1.6667 * distorted.y;
+    result.y = -0.6667 * distorted.x + 2.6667 * distorted.y;
+    result.theta = distorted.theta; 
+    return result;
 }
 
-// 將 vx', vy' 投影到差速控制: linear.x, angular.z
 void omniToDiffDrive(double vx, double vy, double theta, geometry_msgs::Twist& cmd) {
     double v_forward = vx * cos(theta) + vy * sin(theta);
-
     double desired_theta = atan2(vy, vx);
     double angle_error = desired_theta - theta;
     angle_error = atan2(sin(angle_error), cos(angle_error)); // normalize
@@ -59,7 +64,6 @@ void spawnTurtle2(ros::NodeHandle& nh) {
     }
 }
 
-// P 控制器
 geometry_msgs::Twist goToTarget(const Pose& current, const Pose& target) {
     geometry_msgs::Twist cmd;
     double dx = target.x - current.x;
@@ -91,12 +95,13 @@ int main(int argc, char** argv) {
     
     spawnTurtle2(nh);
 
-    std::vector<Pose> square_points = {
-        {5.0, 5.0},
-        {7.5, 5.0},
-        {7.5, 7.5},
-        {5.0, 7.5},
-        {5.0, 5.0}
+    // raw target points in distorted space
+    std::vector<Pose> distorted_points = {
+        {6.5, 3.5},
+        {8.4, 3.9},
+        {9.7, 5.2},
+        {7.8, 4.8},
+        {6.5, 3.5}
     };
 
     size_t target_index = 0;
@@ -112,17 +117,19 @@ int main(int argc, char** argv) {
         ros::Duration elapsed = ros::Time::now() - start_time;
         geometry_msgs::Twist cmdA, cmdB;
 
-        // === turtle A 的路徑控制 ===
-        Pose target = square_points[target_index];
+        // for turtle A: move in a square path
+        Pose raw_target = distorted_points[target_index];
+        Pose target = transformPosition(raw_target);  //pts after transformation
+
         double dx = target.x - turtleA_pose.x;
         double dy = target.y - turtleA_pose.y;
         double distance = sqrt(dx*dx + dy*dy);
 
         if (distance < 0.1) {
             ROS_INFO("Reached corner %lu: Current=(%.2f, %.2f), Target=(%.2f, %.2f)",
-                     target_index, turtleA_pose.x, turtleA_pose.y, target.x, target.y);
+                    target_index, turtleA_pose.x, turtleA_pose.y, raw_target.x, raw_target.y);
             target_index++;
-            if (target_index >= square_points.size()) {
+            if (target_index >= distorted_points.size()) {
                 cmdA.linear.x = 0;
                 cmdA.angular.z = 0;
                 pubA.publish(cmdA);
@@ -130,25 +137,17 @@ int main(int argc, char** argv) {
                 break;
             }
         } else {
-            // 理想 vx, vy
             double vx = dx;
             double vy = dy;
-            // normalize
             double mag = sqrt(vx*vx + vy*vy);
             vx /= mag;
             vy /= mag;
 
-            // apply transform
-            double vx_out, vy_out;
-            applyTransform(vx, vy, vx_out, vy_out);
-
-            // convert to diff-drive
-            omniToDiffDrive(vx_out * 1.0, vy_out * 1.0, turtleA_pose.theta, cmdA);
+            omniToDiffDrive(vx * 1.0, vy * 1.0, turtleA_pose.theta, cmdA);
         }
-
         pubA.publish(cmdA);
 
-        // === turtle B 的追擊邏輯 ===
+        // for turtle B: chase turtle A
         if (elapsed.toSec() > 10.0) {
             double dxB = turtleA_pose.x - turtleB_pose.x;
             double dyB = turtleA_pose.y - turtleB_pose.y;
@@ -158,8 +157,7 @@ int main(int argc, char** argv) {
                 cmdB.linear.x = 0;
                 cmdB.angular.z = 0;
             } else {
-                Pose targetA = turtleA_pose;
-                cmdB = goToTarget(turtleB_pose, targetA);
+                cmdB = goToTarget(turtleB_pose, turtleA_pose);
             }
             pubB.publish(cmdB);
         }
