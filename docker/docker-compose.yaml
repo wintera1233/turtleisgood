@@ -7,7 +7,7 @@ services:
         USERNAME: user
         USER_UID: 1000
         USER_GID: 1000
-    image: local:ros
+    image: wintera1233/project_turtle:test
     container_name: ros1-dev
     stdin_open: true
     tty: true
