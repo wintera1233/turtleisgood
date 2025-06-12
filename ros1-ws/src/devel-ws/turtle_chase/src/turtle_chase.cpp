@@ -53,12 +53,12 @@ void omniToDiffDrive(double vx, double vy, double theta, geometry_msgs::Twist& c
 void spawnTurtle2(ros::NodeHandle& nh) {
     ros::ServiceClient spawn_client = nh.serviceClient<turtlesim::Spawn>("spawn");
     turtlesim::Spawn srv;
-    srv.request.x = 1.0;
-    srv.request.y = 1.0;
+    srv.request.x = 5.0;
+    srv.request.y = 5.0;
     srv.request.theta = 0.0;
     srv.request.name = "turtle2";
     if (spawn_client.call(srv)) {
-        ROS_INFO("Spawned turtle2 at (1.0, 1.0, 0.0)");
+        ROS_INFO("Spawned turtle2 at (5.0, 5.0, 0.0)");
     } else {
         ROS_ERROR("Failed to spawn turtle2");
     }
@@ -148,7 +148,7 @@ int main(int argc, char** argv) {
         pubA.publish(cmdA);
 
         // for turtle B: chase turtle A
-        if (elapsed.toSec() > 10.0) {
+        if (elapsed.toSec() > 4.0) {
             double dxB = turtleA_pose.x - turtleB_pose.x;
             double dyB = turtleA_pose.y - turtleB_pose.y;
             double distB = sqrt(dxB*dxB + dyB*dyB);
